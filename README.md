@@ -301,3 +301,42 @@ curl localhost:8888/listings -XPOST \
     -d price=4500
 ```
 
+## User Service
+### Run the user service
+```bash
+# Run the user service
+python user_service.py --port=6000 --debug=true
+```
+The following settings that can be configured via command-line arguments when starting the app:
+
+- `port`: The port number to run the application on (default: `6000`)
+- `debug`: Runs the application in debug mode. Applications running in debug mode will automatically reload in response to file changes. (default: `true`)
+
+### Create users
+Time to add some data into the user service!
+
+```bash
+curl localhost:6000/users -XPOST \
+    -d name='John Doe' \
+```
+
+## Public API
+### Precondition
+The public API will need to have `user service` and `listing service` running first to work as expected. Be sure to have those two services run first and note their host urls.
+### Setup config
+This service reads a config file to specify host urls of `user service` and `listing service`.
+Create a file named `public_api.conf`, put it in the project root and specify these config values:
+```
+user_service_url='http://localhost:6001'
+listing_service_url='http://localhost:6002'
+```
+
+### Run the public api
+```bash
+python public_api.py --port=6000 --debug=true
+```
+The following settings that can be configured via command-line arguments when starting the app:
+
+- `port`: The port number to run the application on (default: `6000`)
+- `debug`: Runs the application in debug mode. Applications running in debug mode will automatically reload in response to file changes. (default: `true`)
+
