@@ -40,6 +40,11 @@ class BaseHandler(tornado.web.RequestHandler):
 
 # /listings
 class ListingsHandler(BaseHandler):
+    def prepare(self):
+        if self.request.method not in ["GET", "POST"]:
+            self.write_json({"result": False, "errors": ["method not allowed"]}, 405)
+            self.finish()
+            
     @tornado.gen.coroutine
     def get(self):
         # Parsing pagination params
@@ -174,15 +179,25 @@ class ListingsHandler(BaseHandler):
 
 # /listings/ping
 class PingHandler(tornado.web.RequestHandler):
+    def prepare(self):
+        if self.request.method not in ["GET"]:
+            self.write_json({"result": False, "errors": ["method not allowed"]}, 405)
+            self.finish()
+
     @tornado.gen.coroutine
     def get(self):
         self.write("pong!")
 
+class NotFoundHandler(BaseHandler):
+    def prepare(self):
+        self.write_json({"result": False, "errors": ["not found"]})
+        self.finish()
+        
 def make_app(options):
     return App([
         (r"/listings/ping", PingHandler),
         (r"/listings", ListingsHandler),
-    ], debug=options.debug)
+    ], debug=options.debug, default_handler_class=NotFoundHandler)
 
 if __name__ == "__main__":
     # Define settings/options for the web app

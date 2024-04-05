@@ -38,6 +38,11 @@ class BaseHandler(tornado.web.RequestHandler):
 
 # /users
 class UsersHandler(BaseHandler):
+    def prepare(self):
+        if self.request.method not in ["GET", "POST"]:
+            self.write_json({"result": False, "errors": ["method not allowed"]}, 405)
+            self.finish()
+
     @tornado.gen.coroutine
     def get(self):
         # Parsing pagination params
@@ -84,15 +89,7 @@ class UsersHandler(BaseHandler):
         # Collecting required params
         user_name = self.get_argument("name")
 
-        # Validating inputs
-        errors = []
-        # user_id_val = self._validate_user_name(user_name, errors)
         time_now = int(time.time() * 1e6) # Converting current time to microseconds
-
-        # End if we have any validation errors
-        if len(errors) > 0:
-            self.write_json({"result": False, "errors": errors}, status_code=400)
-            return
 
         # Proceed to store the user in our db
         cursor = self.application.db.cursor()
@@ -118,31 +115,28 @@ class UsersHandler(BaseHandler):
 
         self.write_json({"result": True, "user": user})
 
-    def _validate_user_name(self, user_name, errors):
-        try:
-            user_name = str(user_name)
-            return user_name
-        except Exception as e:
-            logging.exception("Error while converting user_name to int: {}".format(user_name))
-            errors.append("invalid user_name")
-            return None
-
 # /users/{id}
 class UserHandler(BaseHandler):
+    def prepare(self):
+        if self.request.method not in ["GET"]:
+            self.write_json({"result": False, "errors": ["method not allowed"]}, 405)
+            self.finish()
+        
     @tornado.gen.coroutine
-    def get(self, user_id=None):
+    def get(self, user_id=int):
         # Building select statement
         select_stmt = "SELECT * FROM users WHERE id=?"
-
+        
         # Fetching users from db
-        args = (user_id)
+        args = (user_id,)
         cursor = self.application.db.cursor()
         
         user = {}
         try:
             results = cursor.execute(select_stmt, args)
-        except:
-            self.write_json({"result": False, "user": user}, 404)
+        except Exception as e:
+            logging.exception("Error getting user: {}".format(e.args[0]))
+            self.write_json({"result": False, "errors": ["internal server error"]}, 500)
             return
 
         for row in results:
@@ -150,6 +144,10 @@ class UserHandler(BaseHandler):
             user = {
                 field: row[field] for field in fields
             }
+        
+        if len(user) <= 0:
+            self.write_json({"result": False, "errors": ["user_id not found"]}, 404)
+            return
 
         self.write_json({"result": True, "user": user})
 
@@ -159,12 +157,17 @@ class PingHandler(tornado.web.RequestHandler):
     def get(self):
         self.write("pong!")
 
+class NotFoundHandler(BaseHandler):
+    def prepare(self):
+        self.write_json({"result": False, "errors": ["not found"]})
+        self.finish()
+
 def make_app(options):
     return App([
         (r"/users/ping", PingHandler),
         (r"/users", UsersHandler),
         (r"/users/(\d+)", UserHandler),
-    ], debug=options.debug)
+    ], debug=options.debug, default_handler_class=NotFoundHandler)
 
 if __name__ == "__main__":
     # Define settings/options for the web app

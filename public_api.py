@@ -18,6 +18,11 @@ class BaseHandler(tornado.web.RequestHandler):
 
 # /users
 class UsersHandler(BaseHandler):
+    def prepare(self):
+        if self.request.method not in ["POST"]:
+            self.write_json({"result": False, "errors": ["method not allowed"]}, 405)
+            self.finish()
+    
     def initialize(self, user_service_url):
         self.user_service_url = user_service_url
 
@@ -39,6 +44,11 @@ class UsersHandler(BaseHandler):
 
 # /listings
 class ListingsHandler(BaseHandler):
+    def prepare(self):
+        if self.request.method not in ["GET", "POST"]:
+            self.write_json({"result": False, "errors": ["method not allowed"]}, 405)
+            self.finish()
+    
     def initialize(self, listing_service_url):
         self.listing_service_url = listing_service_url
 
@@ -148,16 +158,26 @@ class ListingsHandler(BaseHandler):
 
 # /ping
 class PingHandler(tornado.web.RequestHandler):
+    def prepare(self):
+        if self.request.method not in ["GET"]:
+            self.write_json({"result": False, "errors": ["method not allowed"]}, 405)
+            self.finish()
+
     @tornado.gen.coroutine
     def get(self):
         self.write("pong!")
+
+class NotFoundHandler(BaseHandler):
+    def prepare(self):
+        self.write_json({"result": False, "errors": ["not found"]})
+        self.finish()
 
 def make_app(options):
     return App([
         (r"/ping", PingHandler),
         (r"/users", UsersHandler, dict(user_service_url=options.user_service_url)),
         (r"/listings", ListingsHandler, dict(listing_service_url=options.listing_service_url)),
-    ], debug=options.debug)
+    ], debug=options.debug, default_handler_class=NotFoundHandler)
 
 if __name__ == "__main__":
     # Define settings/options for the web app
