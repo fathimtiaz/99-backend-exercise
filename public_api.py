@@ -18,6 +18,9 @@ class BaseHandler(tornado.web.RequestHandler):
 
 # /users
 class UsersHandler(BaseHandler):
+    def initialize(self, user_service_url):
+        self.user_service_url = user_service_url
+
     @tornado.gen.coroutine
     def post(self):
         req_body = self.request.body
@@ -25,18 +28,20 @@ class UsersHandler(BaseHandler):
         # Parsing JSON request body
         data = json.loads(req_body)
         user_name = data.get("name")
-        logging.info("{}".format(user_name))
         
         # Building request
         payload = {"name": user_name}
 
         # Making api call
-        response = requests.post("http://localhost:6001/users", params=payload)
+        response = requests.post(self.user_service_url+"/users", params=payload)
 
         self.write_json(response.json())
 
 # /listings
 class ListingsHandler(BaseHandler):
+    def initialize(self, listing_service_url):
+        self.listing_service_url = listing_service_url
+
     @tornado.gen.coroutine
     def get(self):
         # Parsing pagination params
@@ -67,7 +72,7 @@ class ListingsHandler(BaseHandler):
 
         # Building request
         payload = {"page_num": page_num, "page_size": page_size, "user_id": user_id}
-        response = requests.get("http://localhost:6000/listings", params=payload)
+        response = requests.get(self.listing_service_url+"/listings", params=payload)
         data = response.json()
         
         # Fetching listings from listings service
@@ -106,7 +111,7 @@ class ListingsHandler(BaseHandler):
         payload = {"user_id": user_id_val, "listing_type": listing_type_val, "price": price_val}
 
         # Making api call
-        response = requests.post("http://localhost:6000/listings", params=payload)
+        response = requests.post(self.listing_service_url+"/listings", params=payload)
 
         self.write_json(response.json())
 
@@ -150,8 +155,8 @@ class PingHandler(tornado.web.RequestHandler):
 def make_app(options):
     return App([
         (r"/ping", PingHandler),
-        (r"/users", UsersHandler),
-        (r"/listings", ListingsHandler),
+        (r"/users", UsersHandler, dict(user_service_url=options.user_service_url)),
+        (r"/listings", ListingsHandler, dict(listing_service_url=options.listing_service_url)),
     ], debug=options.debug)
 
 if __name__ == "__main__":
@@ -161,6 +166,14 @@ if __name__ == "__main__":
     # Specify whether the app should run in debug mode
     # Debug mode restarts the app automatically on file changes
     tornado.options.define("debug", default=True)
+
+    # Define host url of user service api 
+    tornado.options.define("user_service_url", type=str)
+    # Define host url of listing service api 
+    tornado.options.define("listing_service_url", type=str)
+
+    # Read settings/options from config file
+    tornado.options.parse_config_file("public_api.conf")
 
     # Read settings/options from command line
     tornado.options.parse_command_line()

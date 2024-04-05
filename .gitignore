@@ -4,3 +4,6 @@ env/
 # Ignore SQLite db files
 *.db
 /.idea/
+
+# Ignore config files
+*.conf
